@@ -127,5 +127,15 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 # for image and media upload
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# frontend access
+CORS_ALLOW_ALL_ORIGINS = True
+
+# add frontend live server url
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+]
