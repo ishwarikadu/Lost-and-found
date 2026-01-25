@@ -1,5 +1,9 @@
 from django.contrib import admin
-from .models import LostFoundItem
-# Register your models here.
+from .models import Profile, Report, Match
 
-admin.site.register(LostFoundItem)
+admin.site.register(Profile)
+admin.site.register(Report)
+admin.site.register(Match)
+
+
+

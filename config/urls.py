@@ -16,7 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+# test api endpoint, to be deleted later
+from django.http import JsonResponse
+
+def test_api(request):
+    return JsonResponse({"message": "Frontend connected successfully"})
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path("api/test/", test_api),
 ]
+
