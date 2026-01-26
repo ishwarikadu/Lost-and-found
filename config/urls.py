@@ -27,3 +27,28 @@ urlpatterns = [
     path("api/test/", test_api),
 ]
 
+from django.urls import path, include
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("lostfound.urls")),
+]
+from django.http import HttpResponse  
+
+def home(request):                   
+    return HttpResponse("Server is running")
+
+urlpatterns = [
+    path("", home),                   
+    path("admin/", admin.site.urls),
+
+]
+
+# auth api url 
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+urlpatterns += [
+    path("api/login/", TokenObtainPairView.as_view(), name="login"),
+    path("api/login/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+]
+
+
