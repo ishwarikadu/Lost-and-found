@@ -1,16 +1,22 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Report
+
+from .models import Report, Match, Profile
+
 
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
         fields = "__all__"
+        read_only_fields = ["id", "reported_by", "created_at"]
 
- # api for registering/login users 
 
-from django.contrib.auth.models import User
-from rest_framework import serializers
-from .models import Profile
+class MatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Match
+        fields = "__all__"
+        read_only_fields = ["id", "created_at","approved_by", "approved_at"]
+
 
 class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
@@ -25,7 +31,7 @@ class RegisterSerializer(serializers.Serializer):
         role = validated_data["role"]
 
         user = User.objects.create_user(
-            username=email,
+            username=email,   # login will use username=email
             email=email,
             password=password,
             first_name=name
@@ -33,3 +39,5 @@ class RegisterSerializer(serializers.Serializer):
 
         Profile.objects.create(user=user, role=role)
         return user
+
+

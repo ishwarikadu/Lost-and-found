@@ -1,14 +1,22 @@
 from django.urls import path
-from .views import items, item_detail
-
-urlpatterns = [
-    path("api/items/", items),
-    path("api/items/<int:pk>/", item_detail),
-]
-# auth api urls and path
-from django.urls import path
-from .views import register
+from .views import (register, reports, report_detail, mark_returned,  matches,
+    matches_pending,
+    matches_approved,
+    matches_rejected,
+    approve_match,
+    reject_match,)
 
 urlpatterns = [
     path("api/register/", register),
+    # reports
+    path("api/reports/", reports),
+    path("api/reports/<int:pk>/", report_detail),
+    path("api/reports/<int:pk>/mark-returned/", mark_returned),
+    # matches
+    path("api/matches/", matches),
+    path("api/matches/pending/", matches_pending),
+    path("api/matches/approved/", matches_approved),
+    path("api/matches/rejected/", matches_rejected),
+    path("api/matches/<int:pk>/approve/", approve_match),
+    path("api/matches/<int:pk>/reject/", reject_match),
 ]

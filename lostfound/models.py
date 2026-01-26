@@ -19,6 +19,7 @@ class Report(models.Model):
     STATUS_CHOICES = [
         ("LOST", "Lost"),
         ("FOUND", "Found"),
+        ("RETURNED", "Returned"),
     ]
 
     item_name = models.CharField(max_length=200, blank=True, null=True)
@@ -28,7 +29,7 @@ class Report(models.Model):
     location = models.CharField(max_length=200)
     image_url = models.URLField(blank=True, null=True)
 
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     is_matched = models.BooleanField(default=False)
 
 
@@ -47,14 +48,19 @@ class Match(models.Model):
     ]
 
     lost_report = models.ForeignKey(
-        Report, on_delete=models.CASCADE, related_name="lost_matches"
+        "Report", on_delete=models.CASCADE, related_name="lost_matches"
     )
     found_report = models.ForeignKey(
-        Report, on_delete=models.CASCADE, related_name="found_matches"
+        "Report", on_delete=models.CASCADE, related_name="found_matches"
     )
 
     match_score = models.FloatField(default=0.0)
     status = models.CharField(max_length=10, choices=MATCH_STATUS, default="PENDING")
+
+    approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="approved_matches"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
