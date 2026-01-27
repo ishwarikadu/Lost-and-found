@@ -4,7 +4,8 @@ from .views import (register, reports, report_detail, mark_returned,  matches,
     matches_approved,
     matches_rejected,
     approve_match,
-    reject_match,)
+    reject_match,
+    unmatched_reports)
 
 urlpatterns = [
     path("api/register/", register),
@@ -19,4 +20,6 @@ urlpatterns = [
     path("api/matches/rejected/", matches_rejected),
     path("api/matches/<int:pk>/approve/", approve_match),
     path("api/matches/<int:pk>/reject/", reject_match),
+    path("api/admin/reports/unmatched/", unmatched_reports),
+
 ]

@@ -111,7 +111,8 @@ def mark_returned(request, pk):
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def matches(request):
-    # Admin can see all matches
+
+    # * GET (admin only) *
     if request.method == "GET":
         if not request.user.is_staff:
             return Response({"error": "Admin only"}, status=403)
@@ -119,13 +120,34 @@ def matches(request):
         qs = Match.objects.all().order_by("-created_at")
         return Response(MatchSerializer(qs, many=True).data)
 
-    # AI member creates matches
-    if request.method == "POST":
-        serializer = MatchSerializer(data=request.data)
-        if serializer.is_valid():
-            match = serializer.save(status="PENDING")
-            return Response(MatchSerializer(match).data, status=201)
+    # * POST AI creates match *
+    serializer = MatchSerializer(data=request.data)
+
+    if not serializer.is_valid():
         return Response(serializer.errors, status=400)
+
+    lost = serializer.validated_data["lost_report"]
+    found = serializer.validated_data["found_report"]
+
+    # sanity checks
+    if lost.status != "LOST":
+        return Response(
+            {"error": "lost_report must have status LOST"},
+            status=400
+        )
+
+    if found.status != "FOUND":
+        return Response(
+            {"error": "found_report must have status FOUND"},
+            status=400
+        )
+
+    match = serializer.save(status="PENDING")
+    return Response(MatchSerializer(match).data, status=201)
+
+
+    return Response(serializer.errors, status=400)
+
 
 
 @api_view(["GET"])
@@ -185,6 +207,7 @@ def approve_match(request, pk):
 
     return Response({"message": "Match approved"}, status=200)
 
+# * NOT APPROVE MATCH *
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
@@ -204,3 +227,11 @@ def reject_match(request, pk):
 
     return Response({"message": "Match rejected"}, status=200)
 
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def unmatched_reports(request):
+    if not request.user.is_staff:
+        return Response({"error": "Admin only"}, status=403)
+
+    qs = Report.objects.filter(is_matched=False).order_by("-created_at")
+    return Response(ReportSerializer(qs, many=True).data)
