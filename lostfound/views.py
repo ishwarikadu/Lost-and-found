@@ -1,13 +1,20 @@
+from importlib import reload
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 
+from cloudinary.uploader import upload, destroy
 from .serializers import RegisterSerializer, ReportSerializer
 from .models import Report
 from django.utils import timezone
 from .models import Match
 from .serializers import MatchSerializer
+
+from .utils import success_response, error_response
+
 
 
 
@@ -18,13 +25,22 @@ def register(request):
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
-        return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return success_response(
+        "User registered successfully",
+        None,
+        status=status.HTTP_201_CREATED
+)
 
+    return error_response(
+        "Validation failed",
+        serializer.errors,
+        status=status.HTTP_400_BAD_REQUEST
+)
 
 # * REPORTS *
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def reports(request):
     if request.method == "GET":
         qs = Report.objects.all().order_by("-created_at")
@@ -54,40 +70,99 @@ def reports(request):
                 location__icontains=search_query
             )
 
-        return Response(ReportSerializer(qs, many=True).data)
+        return success_response(
+    "Reports fetched successfully",
+    ReportSerializer(qs, many=True).data
+)
+
 
     if request.method == "POST":
         serializer = ReportSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(reported_by=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return success_response(
+    data=serializer.data,
+    message="Report created successfully",
+    status=201
+)
+        return error_response(
+        message="Validation failed",
+        errors=serializer.errors,
+        status=400
+)
+
+
 
 
 @api_view(["GET", "PATCH", "DELETE"])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def report_detail(request, pk):
     try:
         report = Report.objects.get(pk=pk)
     except Report.DoesNotExist:
-        return Response({"error": "Report not found"}, status=404)
+        return error_response(
+        "Report not found",
+        status=404
+    )
+
 
     if request.method == "GET":
-        return Response(ReportSerializer(report).data)
+       return success_response(
+    "Report fetched successfully",
+    ReportSerializer(report).data
+)
+
 
     if report.reported_by != request.user and not request.user.is_staff:
-        return Response({"error": "Not allowed"}, status=403)
+        return error_response(
+    "Permission denied",
+    status=403
+)
+
 
     if request.method == "PATCH":
-        serializer = ReportSerializer(report, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+     image = request.FILES.get("image")
+
+    # if a new image is uploaded
+    if image:
+        # delete old image from Cloudinary
+        if report.image_public_id:
+            destroy(report.image_public_id)
+
+        # upload new image
+        result = upload(image, folder="lost_found")
+        report.image_url = result.get("secure_url")
+        report.image_public_id = result.get("public_id")
+
+    serializer = ReportSerializer(report, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return success_response(
+            "Report updated successfully",
+            serializer.data
+        )
+
+    return error_response(
+        "Validation failed",
+        serializer.errors,
+        status=400
+    )
+
+
 
     if request.method == "DELETE":
-        report.delete()
-        return Response(status=204)
+    # delete image from Cloudinary first
+          if report.image_public_id:
+           destroy(report.image_public_id)
+
+    report.delete()
+    return success_response(
+        "Report deleted successfully",
+        None,
+        status=200
+    )
+
 
 
 @api_view(["PATCH"])
@@ -96,16 +171,26 @@ def mark_returned(request, pk):
     try:
         report = Report.objects.get(pk=pk)
     except Report.DoesNotExist:
-        return Response({"error": "Report not found"}, status=404)
+        return error_response(
+    "Report not found",
+    status=404
+)
+
+
 
     if report.reported_by != request.user and not request.user.is_staff:
-        return Response({"error": "Not allowed"}, status=403)
-
+        return error_response(
+    "Not allowed",
+    status=403
+)
     report.status = "RETURNED"
     report.save()
 
-    return Response({"message": "Report marked as RETURNED"}, status=200)
-
+    return success_response(
+    "Report marked as RETURNED",
+    None,
+    status=200
+)
 
 # * MATCHES *
 @api_view(["GET", "POST"])
@@ -115,81 +200,140 @@ def matches(request):
     # * GET (admin only) *
     if request.method == "GET":
         if not request.user.is_staff:
-            return Response({"error": "Admin only"}, status=403)
+            return error_response(
+    "Admin access required",
+    status=403
+)
+
 
         qs = Match.objects.all().order_by("-created_at")
-        return Response(MatchSerializer(qs, many=True).data)
+        return success_response(
+    "Matches fetched successfully",
+    MatchSerializer(qs, many=True).data,
+    status=200
+)
+
+
 
     # * POST AI creates match *
     serializer = MatchSerializer(data=request.data)
 
     if not serializer.is_valid():
-        return Response(serializer.errors, status=400)
+        return error_response(
+    "Validation failed",
+    serializer.errors,
+    status=400
+)
+
 
     lost = serializer.validated_data["lost_report"]
     found = serializer.validated_data["found_report"]
 
     # sanity checks
     if lost.status != "LOST":
-        return Response(
-            {"error": "lost_report must have status LOST"},
-            status=400
-        )
+       return error_response(
+    "lost_report must have status LOST",
+    status=400
+)
+
 
     if found.status != "FOUND":
-        return Response(
-            {"error": "found_report must have status FOUND"},
+        return error_response(
+            "found_report must have status FOUND",
             status=400
         )
 
     match = serializer.save(status="PENDING")
-    return Response(MatchSerializer(match).data, status=201)
+    return success_response(
+        "Match created successfully",
+        MatchSerializer(match).data,
+        status=201
+    )
 
 
-    return Response(serializer.errors, status=400)
-
+    return error_response(
+        "Validation failed",
+        serializer.errors,
+        status=400
+)
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def matches_pending(request):
     if not request.user.is_staff:
-        return Response({"error": "Admin only"}, status=403)
+       return error_response(
+    "Admin access required",
+    status=403
+    )
+
+
 
     qs = Match.objects.filter(status="PENDING").order_by("-created_at")
-    return Response(MatchSerializer(qs, many=True).data)
+    return success_response(
+        "Matches fetched successfully",
+        MatchSerializer(qs, many=True).data,
+        status=200
+    )
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def matches_approved(request):
     if not request.user.is_staff:
-        return Response({"error": "Admin only"}, status=403)
+                    return error_response(
+    "Admin access required",
+    status=403
+)
+
 
     qs = Match.objects.filter(status="APPROVED").order_by("-created_at")
-    return Response(MatchSerializer(qs, many=True).data)
+    return success_response(
+        "Matches fetched successfully",
+        MatchSerializer(qs, many=True).data,
+        status=200
+    )
+    match.approved_by = request.user
+    match.approved_at = timezone.now()
+
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def matches_rejected(request):
     if not request.user.is_staff:
-        return Response({"error": "Admin only"}, status=403)
+      return error_response(
+    "Admin access required",
+    status=403
+)
 
     qs = Match.objects.filter(status="REJECTED").order_by("-created_at")
-    return Response(MatchSerializer(qs, many=True).data)
+    return success_response(
+        "Matches fetched successfully",
+        MatchSerializer(qs, many=True).data,
+        status=200
+    )
+    match.approved_by = request.user
+    match.approved_at = timezone.now()
 
 
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def approve_match(request, pk):
     if not request.user.is_staff:
-        return Response({"error": "Admin only"}, status=403)
+        return error_response(
+    "Admin access required",
+    status=403
+)
 
     try:
         match = Match.objects.get(pk=pk)
     except Match.DoesNotExist:
-        return Response({"error": "Match not found"}, status=404)
+        return error_response(
+            "Match not found",
+            status=404
+        )
+
 
     match.status = "APPROVED"
     match.approved_by = request.user
@@ -205,7 +349,12 @@ def approve_match(request, pk):
     match.found_report.is_matched = True
     match.found_report.save()
 
-    return Response({"message": "Match approved"}, status=200)
+    return success_response(
+    "Match approved successfully",
+    None,
+    status=200
+)
+
 
 # * NOT APPROVE MATCH *
 
@@ -213,25 +362,44 @@ def approve_match(request, pk):
 @permission_classes([IsAuthenticated])
 def reject_match(request, pk):
     if not request.user.is_staff:
-        return Response({"error": "Admin only"}, status=403)
+         return error_response(
+    "Admin access required",
+    status=403
+)
 
     try:
         match = Match.objects.get(pk=pk)
     except Match.DoesNotExist:
-        return Response({"error": "Match not found"}, status=404)
+        return error_response(
+            "Match not found",
+            status=404
+        )
+
 
     match.status = "REJECTED"
     match.approved_by = request.user
     match.approved_at = timezone.now()
     match.save()
 
-    return Response({"message": "Match rejected"}, status=200)
+    return success_response(
+    "Match Rejected",
+    None,
+    status=200
+)
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def unmatched_reports(request):
     if not request.user.is_staff:
-        return Response({"error": "Admin only"}, status=403)
+        return error_response(
+    "Admin access required",
+    status=403
+        )
 
     qs = Report.objects.filter(is_matched=False).order_by("-created_at")
-    return Response(ReportSerializer(qs, many=True).data)
+    return success_response(
+        "Unmatched reports fetched successfully",
+        ReportSerializer(qs, many=True).data,
+        status=200
+    )

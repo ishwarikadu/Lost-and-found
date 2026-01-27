@@ -22,13 +22,25 @@ class Report(models.Model):
         ("RETURNED", "Returned"),
     ]
 
-    item_name = models.CharField(max_length=200, blank=True, null=True)
+    CATEGORY_CHOICES = [
+    ("WALLET", "Wallet"),
+    ("PHONE", "Phone"),
+    ("BAG", "Bag"),
+    ("LAPTOP", "Laptop"),
+    ("BOOKS", "Books"),
+    ("USB", "USB Drive"),
+    ("OTHERS", "Others"),
+]
+
+    item_name = models.CharField(max_length=225, blank=True, null=True)
     category = models.CharField(max_length=100)
     description = models.TextField()
     date = models.DateField()
     location = models.CharField(max_length=200)
     image_url = models.URLField(blank=True, null=True)
+    image_public_id = models.CharField(max_length=255, blank=True, null=True)
 
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     is_matched = models.BooleanField(default=False)
 
@@ -63,6 +75,7 @@ class Match(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    
 
     def __str__(self):
         return f"Match {self.lost_report.id} ↔ {self.found_report.id} ({self.match_score})"

@@ -58,6 +58,11 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ),
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.MultiPartParser",
+        "rest_framework.parsers.FormParser",
+    ],
 }
 
 
@@ -161,3 +166,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5500",
     "http://localhost:5500",
 ]
+
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+cloudinary.config(
+  cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"),
+  api_key = os.getenv("CLOUDINARY_API_KEY"),
+  api_secret = os.getenv("CLOUDINARY_API_SECRET"),
+  secure = True
+)
