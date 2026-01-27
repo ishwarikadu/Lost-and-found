@@ -148,13 +148,11 @@ def report_detail(request, pk):
         serializer.errors,
         status=400
     )
-
-
-
+    
     if request.method == "DELETE":
     # delete image from Cloudinary first
-          if report.image_public_id:
-           destroy(report.image_public_id)
+     if report.image_public_id:
+        destroy(report.image_public_id)
 
     report.delete()
     return success_response(
@@ -162,6 +160,10 @@ def report_detail(request, pk):
         None,
         status=200
     )
+
+    
+    
+             
 
 
 
