@@ -5,8 +5,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models import Q
 
 from cloudinary.uploader import upload, destroy
+from urllib3 import request
+from urllib3 import request
 from .serializers import RegisterSerializer, ReportSerializer
 from .models import Report
 from django.utils import timezone
@@ -42,6 +45,7 @@ def register(request):
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def reports(request):
+
     if request.method == "GET":
         qs = Report.objects.all().order_by("-created_at")
 
@@ -50,46 +54,62 @@ def reports(request):
         location_filter = request.GET.get("location")
         search_query = request.GET.get("search")
 
-        if status_filter:
-            qs = qs.filter(status=status_filter)
+    if search_query:
+        qs = qs.filter(
+            Q(item_name__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(category__icontains=search_query) |
+            Q(location__icontains=search_query)
+        )
 
-        if category_filter:
-            qs = qs.filter(category__icontains=category_filter)
-
-        if location_filter:
-            qs = qs.filter(location__icontains=location_filter)
-
-        if search_query:
-            qs = qs.filter(
-                item_name__icontains=search_query
-            ) | qs.filter(
-                description__icontains=search_query
-            ) | qs.filter(
-                category__icontains=search_query
-            ) | qs.filter(
-                location__icontains=search_query
+        # * pagination *
+        try:
+            page = int(request.GET.get("page", 1))
+            limit = int(request.GET.get("limit", 10))
+        except ValueError:
+            return error_response(
+                "page and limit must be integers",
+                status=400
             )
 
-        return success_response(
-    "Reports fetched successfully",
-    ReportSerializer(qs, many=True).data
-)
+        if page < 1 or limit < 1:
+            return error_response(
+                "page and limit must be positive numbers",
+                status=400
+            )
 
+        start = (page - 1) * limit
+        end = start + limit
+
+        total_count = qs.count()
+        qs = qs[start:end]
+
+        return success_response(
+            "Reports fetched successfully",
+            {
+                "total": total_count,
+                "page": page,
+                "limit": limit,
+                "results": ReportSerializer(qs, many=True).data
+            }
+        )
 
     if request.method == "POST":
         serializer = ReportSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(reported_by=request.user)
             return success_response(
-    data=serializer.data,
-    message="Report created successfully",
-    status=201
-)
+                "Report created successfully",
+                serializer.data,
+                status=201
+            )
+
         return error_response(
-        message="Validation failed",
-        errors=serializer.errors,
-        status=400
-)
+            "Validation failed",
+            serializer.errors,
+            status=400
+        )
+
 
 
 
@@ -108,12 +128,10 @@ def report_detail(request, pk):
 
 
     if request.method == "GET":
-       return success_response(
-    "Report fetched successfully",
-    ReportSerializer(report).data
-)
-
-
+     return success_response(
+            "Report fetched successfully",
+            ReportSerializer(report).data
+        )
     if report.reported_by != request.user and not request.user.is_staff:
         return error_response(
     "Permission denied",
@@ -148,11 +166,11 @@ def report_detail(request, pk):
         serializer.errors,
         status=400
     )
-    
+
     if request.method == "DELETE":
-    # delete image from Cloudinary first
-     if report.image_public_id:
-        destroy(report.image_public_id)
+        # delete image from Cloudinary first
+        if report.image_public_id:
+            destroy(report.image_public_id)
 
     report.delete()
     return success_response(
@@ -161,9 +179,6 @@ def report_detail(request, pk):
         status=200
     )
 
-    
-    
-             
 
 
 
