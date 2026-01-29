@@ -67,6 +67,8 @@ class Match(models.Model):
     )
 
     match_score = models.FloatField(default=0.0)
+    reason = models.TextField(blank=True)
+
     status = models.CharField(max_length=10, choices=MATCH_STATUS, default="PENDING")
 
     approved_by = models.ForeignKey(

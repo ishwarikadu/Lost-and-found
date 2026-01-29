@@ -15,6 +15,9 @@ from .models import Report
 from django.utils import timezone
 from .models import Match
 from .serializers import MatchSerializer
+from .ai_utils import compute_similarities, calculate_score
+from .models import Report, Match
+
 
 from .utils import success_response, error_response
 
@@ -419,4 +422,63 @@ def unmatched_reports(request):
         "Unmatched reports fetched successfully",
         ReportSerializer(qs, many=True).data,
         status=200
+    )
+
+# * AI BASED MATCHING *
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def ai_match(request):
+    report_id = request.data.get("report_id")
+
+    if not report_id:
+        return error_response("report_id is required", status=400)
+
+    try:
+        target = Report.objects.get(id=report_id)
+    except Report.DoesNotExist:
+        return error_response("Report not found", status=404)
+
+    if target.status == "LOST":
+        candidates = Report.objects.filter(status="FOUND", is_matched=False)
+    else:
+        candidates = Report.objects.filter(status="LOST", is_matched=False)
+
+    candidate_texts = [c.description or "" for c in candidates]
+
+    similarities = compute_similarities(
+        target.description or "",
+        candidate_texts
+    )
+
+    results = []
+
+    for candidate, sim in zip(candidates, similarities):
+        score, reason = calculate_score(target, candidate, sim)
+
+        auto_created = False
+        if score >= 0.8:
+            Match.objects.create(
+                lost_report=target if target.status == "LOST" else candidate,
+                found_report=candidate if target.status == "LOST" else target,
+                match_score=round(score, 2),
+                reason=reason,
+                status="PENDING"
+            )
+            auto_created = True
+
+        results.append({
+            "report_id": candidate.id,
+            "score": round(score, 2),
+            "reason": reason,
+            "auto_created": auto_created
+        })
+
+    results = sorted(results, key=lambda x: x["score"], reverse=True)[:5]
+
+    return success_response(
+        "AI matching completed",
+        {
+            "report_id": target.id,
+            "matches": results
+        }
     )

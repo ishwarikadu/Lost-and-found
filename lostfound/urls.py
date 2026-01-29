@@ -5,7 +5,8 @@ from .views import (register, reports, report_detail, mark_returned,  matches,
     matches_rejected,
     approve_match,
     reject_match,
-    unmatched_reports)
+    unmatched_reports,
+    ai_match)
 
 urlpatterns = [
     path("api/register/", register),
@@ -19,7 +20,8 @@ urlpatterns = [
     path("api/matches/approved/", matches_approved),
     path("api/matches/rejected/", matches_rejected),
     path("api/matches/<int:pk>/approve/", approve_match),
-    path("api/matches/<int:pk>/reject/", reject_match),
-    path("api/admin/reports/unmatched/", unmatched_reports),
-
-]
+        path("api/matches/<int:pk>/reject/", reject_match),
+        path("api/admin/reports/unmatched/", unmatched_reports),
+        # Ai based matching endpoint 
+        path("ai/match/", ai_match),
+    ]
