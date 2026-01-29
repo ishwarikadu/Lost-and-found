@@ -15,8 +15,10 @@ from .models import Report
 from django.utils import timezone
 from .models import Match
 from .serializers import MatchSerializer
+from django.conf import settings
 from .ai_utils import compute_similarities, calculate_score
 from .models import Report, Match
+
 
 
 from .utils import success_response, error_response
@@ -428,8 +430,13 @@ def unmatched_reports(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def ai_match(request):
-    report_id = request.data.get("report_id")
 
+    # AI KEY PROTECTION
+    api_key = request.headers.get("X-AI-KEY")
+    if api_key != settings.AI_API_KEY:
+        return error_response("Invalid AI key", status=403)
+
+    report_id = request.data.get("report_id")
     if not report_id:
         return error_response("report_id is required", status=400)
 
@@ -455,7 +462,7 @@ def ai_match(request):
     for candidate, sim in zip(candidates, similarities):
         score, reason = calculate_score(target, candidate, sim)
 
-        auto_created = False
+        auto_matched = False
         if score >= 0.8:
             Match.objects.create(
                 lost_report=target if target.status == "LOST" else candidate,
@@ -464,16 +471,21 @@ def ai_match(request):
                 reason=reason,
                 status="PENDING"
             )
-            auto_created = True
+            auto_matched = True
 
         results.append({
             "report_id": candidate.id,
             "score": round(score, 2),
             "reason": reason,
-            "auto_created": auto_created
+            "auto_created": auto_matched
         })
 
-    results = sorted(results, key=lambda x: x["score"], reverse=True)[:5]
+    # TOP 5 MATCHES
+    results = sorted(
+        results,
+        key=lambda x: x["score"],
+        reverse=True
+    )[:5]
 
     return success_response(
         "AI matching completed",

@@ -28,10 +28,9 @@ def calculate_score(target, candidate, text_similarity):
         score += 0.2
         reasons.append("Same location")
 
-    text_part = text_similarity * 0.5
-    score += text_part
-
+    score += text_similarity * 0.5
     if text_similarity > 0.4:
         reasons.append("Similar description")
 
     return min(score, 1.0), ", ".join(reasons)
+
