@@ -187,3 +187,9 @@ cloudinary.config(
   api_secret = os.getenv("CLOUDINARY_API_SECRET"),
   secure = True
 )
+
+# AI API Key
+AI_API_KEY = os.getenv("AI_API_KEY")
+if not AI_API_KEY:
+    raise RuntimeError("AI_API_KEY not set in environment") 
+
