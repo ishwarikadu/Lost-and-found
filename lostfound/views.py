@@ -494,3 +494,29 @@ def ai_match(request):
             "matches": results
         }
     )
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def report_matches(request, pk):
+    try:
+        report = Report.objects.get(pk=pk)
+    except Report.DoesNotExist:
+        return error_response("Report not found", status=404)
+
+    # user can only see matches of own report OR admin
+    if report.reported_by != request.user and not request.user.is_staff:
+        return error_response("Permission denied", status=403)
+
+    qs = Match.objects.filter(
+        lost_report=report
+    ) | Match.objects.filter(
+        found_report=report
+    )
+
+    qs = qs.order_by("-created_at")
+
+    return success_response(
+        "Matches fetched successfully",
+        MatchSerializer(qs, many=True).data,
+        status=200
+    )

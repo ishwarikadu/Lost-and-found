@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (register, reports, report_detail, mark_returned,  matches,
+from .views import (register, report_matches, reports, report_detail, mark_returned,  matches,
     matches_pending,
     matches_approved,
     matches_rejected,
@@ -24,4 +24,6 @@ urlpatterns = [
         path("api/admin/reports/unmatched/", unmatched_reports),
         # Ai based matching endpoint 
         path("ai/match/", ai_match),
+        path("reports/<int:pk>/matches/", report_matches),
+
     ]
