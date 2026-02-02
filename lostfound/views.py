@@ -462,7 +462,6 @@ def ai_match(request):
     for candidate, sim in zip(candidates, similarities):
         score, reason = calculate_score(target, candidate, sim)
 
-        auto_matched = False
         if score >= 0.8:
             Match.objects.create(
                 lost_report=target if target.status == "LOST" else candidate,
@@ -471,13 +470,12 @@ def ai_match(request):
                 reason=reason,
                 status="PENDING"
             )
-            auto_matched = True
+           
 
         results.append({
             "report_id": candidate.id,
             "score": round(score, 2),
             "reason": reason,
-            "auto_created": auto_matched
         })
 
     # TOP 5 MATCHES
