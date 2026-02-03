@@ -1,40 +1,59 @@
+const BASE_URL = "http://127.0.0.1:8000";
+
 async function submitFound() {
-  const category = document.getElementById("category").value.trim();
+  const category = document.getElementById("category").value;
   const description = document.getElementById("description").value.trim();
-  const keywords = document.getElementById("keywords").value.trim();
   const dateFound = document.getElementById("dateFound").value;
   const location = document.getElementById("location").value.trim();
-  const image = document.getElementById("image").files[0];
+  const imageUrl = document.getElementById("imageUrl")?.value.trim() || "";
 
+  const msgEl = document.getElementById("found_msg");
+
+  // Basic validation
   if (!category || !dateFound || !location) {
-    document.getElementById("found_msg").innerText = "Please fill required fields";
+    msgEl.innerText = "Please fill all required fields";
     return;
   }
 
-  let formData = new FormData();
-  formData.append("category", category);
-  formData.append("description", description);
-  formData.append("keywords", keywords);
-  formData.append("dateFound", dateFound);
-  formData.append("location", location);
-  if (image) formData.append("image", image);
-
   const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "login.html";
+    return;
+  }
 
-  const res = await fetch(`${BASE_URL}/api/found`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`
-    },
-    body: formData
-  });
+  const payload = {
+    item_name: null,               // optional for found items
+    category: category,
+    description: description,
+    date: dateFound,
+    location: location,
+    image_url: imageUrl,
+    status: "FOUND"
+  };
 
-  const data = await res.json();
+  try {
+    const res = await fetch(`${BASE_URL}/api/reports/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
 
-  if (data.message === "Found item submitted" || data.data) {
-    alert("Found Item Submitted ✅");
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      msgEl.innerText = data.message || "Failed to submit found item";
+      return;
+    }
+
+    alert("Found item submitted successfully ✅");
     window.location.href = "dashboard.html";
-  } else {
-    document.getElementById("found_msg").innerText = data.message;
+
+  } catch (err) {
+    console.error(err);
+    msgEl.innerText = "Server error. Please try again.";
   }
 }

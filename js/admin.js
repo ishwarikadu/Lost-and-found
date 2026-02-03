@@ -9,7 +9,7 @@ if (role !== "admin") {
 
 // Load Matched Items
 async function loadMatches() {
-  const res = await fetch(`${BASE_URL}/api/admin/matches`, {
+  const res = await fetch(`${BASE_URL}/api/admin/matches/`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
 
@@ -52,7 +52,7 @@ async function loadMatches() {
 
 // Load UNMATCHED Lost + Found Items
 async function loadUnmatched() {
-  const res = await fetch(`${BASE_URL}/api/admin/unmatched`, {
+  const res = await fetch(`${BASE_URL}/api/admin/unmatched/`, {
     headers: { "Authorization": `Bearer ${token}` }
   });
 
@@ -98,7 +98,7 @@ async function loadUnmatched() {
 
 // Popup image
 function showImage(filename) {
-  document.getElementById("popupImage").src = `http://localhost:5000/uploads/${filename}`;
+  document.getElementById("popupImage").src = `http://localhost:8000/uploads/${filename}`;
   new bootstrap.Modal(document.getElementById("imageModal")).show();
 }
 

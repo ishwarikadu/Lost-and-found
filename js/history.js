@@ -1,50 +1,108 @@
+const BASE_URL = "http://localhost:8000";
 const token = localStorage.getItem("token");
 
-// Load Lost Items
-async function loadLost() {
-  const res = await fetch(`${BASE_URL}/api/lost/my`, {
-    headers: { "Authorization": `Bearer ${token}` }
-  });
+/* -------------------- Helpers -------------------- */
 
-  const data = await res.json();
+function authHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  };
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "N/A";
+  return dateStr.substring(0, 10);
+}
+
+function statusBadge(status) {
+  if (status === "RETURNED") return "success";
+  if (status === "FOUND") return "info";
+  return "warning"; // LOST
+}
+
+/* -------------------- Load LOST items -------------------- */
+
+async function loadLost() {
+  const res = await fetch(
+    `${BASE_URL}/api/reports/?status=LOST`,
+    { headers: authHeaders() }
+  );
+
+  const json = await res.json();
   const body = document.getElementById("lostBody");
   body.innerHTML = "";
 
-  data.forEach(item => {
+  if (!json.success) {
+    body.innerHTML = `<tr><td colspan="5">Failed to load lost items</td></tr>`;
+    return;
+  }
+
+  json.data.forEach(item => {
     body.innerHTML += `
       <tr>
-        <td><a href="#" onclick="showImage('${item.image}')">View</a></td>
+        <td>
+          ${item.image_url
+            ? `<a href="${item.image_url}" target="_blank">View</a>`
+            : "N/A"}
+        </td>
         <td>${item.category}</td>
         <td>${item.location}</td>
-        <td>${item.dateLost?.substring(0,10) || "N/A"}</td>
-        <td><span class="badge bg-${item.status === 'returned' ? 'success' : 'warning'}">${item.status}</span></td>
+        <td>${formatDate(item.date)}</td>
+        <td>
+          <span class="badge bg-${statusBadge(item.status)}">
+            ${item.status}
+          </span>
+        </td>
       </tr>
     `;
   });
 }
 
-// Load Found Items
-async function loadFound() {
-  const res = await fetch(`${BASE_URL}/api/found/my`, {
-    headers: { "Authorization": `Bearer ${token}` }
-  });
+/* -------------------- Load FOUND items -------------------- */
 
-  const data = await res.json();
+async function loadFound() {
+  const res = await fetch(
+    `${BASE_URL}/api/reports/?status=FOUND`,
+    { headers: authHeaders() }
+  );
+
+  const json = await res.json();
   const body = document.getElementById("foundBody");
   body.innerHTML = "";
 
-  data.forEach(item => {
+  if (!json.success) {
+    body.innerHTML = `<tr><td colspan="5">Failed to load found items</td></tr>`;
+    return;
+  }
+
+  json.data.forEach(item => {
     body.innerHTML += `
       <tr>
-        <td><a href="#" onclick="showImage('${item.image}')">View</a></td>
+        <td>
+          ${item.image_url
+            ? `<a href="${item.image_url}" target="_blank">View</a>`
+            : "N/A"}
+        </td>
         <td>${item.category}</td>
         <td>${item.location}</td>
-        <td>${item.dateFound?.substring(0,10) || "N/A"}</td>
-        <td><span class="badge bg-${item.matchedWith ? 'info' : 'warning'}">${item.matchedWith ? 'Matched' : 'Pending'}</span></td>
+        <td>${formatDate(item.date)}</td>
+        <td>
+          <span class="badge bg-${item.is_matched ? "success" : "warning"}">
+            ${item.is_matched ? "Matched" : "Pending"}
+          </span>
+        </td>
       </tr>
     `;
   });
 }
 
-loadLost();
-loadFound();
+/* -------------------- Init -------------------- */
+
+if (!token) {
+  alert("Please login first");
+  window.location.href = "login.html";
+} else {
+  loadLost();
+  loadFound();
+}

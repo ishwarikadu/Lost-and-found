@@ -1,4 +1,4 @@
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "http://localhost:8000";
 
 // Redirect to login if token missing
 if (!localStorage.getItem("token")) {

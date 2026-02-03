@@ -1,42 +1,60 @@
+const BASE_URL = "http://localhost:8000";
+
 async function submitLost() {
   const itemName = document.getElementById("itemName").value.trim();
-  const category = document.getElementById("category").value.trim();
+  const category = document.getElementById("category").value;
   const description = document.getElementById("description").value.trim();
-  const keywords = document.getElementById("keywords").value.trim();
   const dateLost = document.getElementById("dateLost").value;
   const location = document.getElementById("location").value.trim();
-  const image = document.getElementById("image").files[0];
+  const imageUrl = document.getElementById("imageUrl")?.value.trim() || "";
 
-  if (!itemName || !category || !dateLost || !location) {
-    document.getElementById("lost_msg").innerText = "Please fill required fields";
+  const msgEl = document.getElementById("lost_msg");
+
+  // Basic validation
+  if (!category || !dateLost || !location) {
+    msgEl.innerText = "Please fill all required fields";
     return;
   }
 
-  let formData = new FormData();
-  formData.append("itemName", itemName);
-  formData.append("category", category);
-  formData.append("description", description);
-  formData.append("keywords", keywords);
-  formData.append("dateLost", dateLost);
-  formData.append("location", location);
-  if (image) formData.append("image", image);
-
   const token = localStorage.getItem("token");
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "login.html";
+    return;
+  }
 
-  const res = await fetch(`${BASE_URL}/api/lost`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`
-    },
-    body: formData
-  });
+  const payload = {
+    item_name: itemName || null,
+    category: category,
+    description: description,
+    date: dateLost,
+    location: location,
+    image_url: imageUrl,
+    status: "LOST"
+  };
 
-  const data = await res.json();
+  try {
+    const res = await fetch(`${BASE_URL}/api/reports/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
 
-  if (data.message === "Lost item submitted successfully" || data.data) {
-    alert("Lost Item Submitted ✅");
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      msgEl.innerText = data.message || "Failed to submit lost item";
+      return;
+    }
+
+    alert("Lost item submitted successfully ✅");
     window.location.href = "dashboard.html";
-  } else {
-    document.getElementById("lost_msg").innerText = data.message;
+
+  } catch (err) {
+    console.error(err);
+    msgEl.innerText = "Server error. Please try again.";
   }
 }
