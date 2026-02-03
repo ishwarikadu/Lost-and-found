@@ -1,11 +1,14 @@
-const BASE_URL = "http://localhost:8000";
-const token = localStorage.getItem("token");
+const BASE_URL = "http://127.0.0.1:8000";
 
 /* -------------------- Helpers -------------------- */
 
+function getToken() {
+  return localStorage.getItem("token");
+}
+
 function authHeaders() {
+  const token = getToken();
   return {
-    "Content-Type": "application/json",
     "Authorization": `Bearer ${token}`
   };
 }
@@ -15,17 +18,14 @@ function formatDate(dateStr) {
   return dateStr.substring(0, 10);
 }
 
-function statusBadge(status) {
-  if (status === "APPROVED") return "success";
-  if (status === "REJECTED") return "danger";
-  return "warning"; // PENDING
-}
-
 /* -------------------- Auth Guard -------------------- */
 
-if (!token) {
-  alert("Please login first");
-  window.location.href = "login.html";
+function requireAuth() {
+  const token = getToken();
+  if (!token) {
+    alert("Please login first");
+    window.location.href = "login.html";
+  }
 }
 
 /* -------------------- Load PENDING Matches -------------------- */
@@ -40,19 +40,20 @@ async function loadPendingMatches() {
       { headers: authHeaders() }
     );
 
+    if (res.status === 401) {
+      requireAuth();
+      return;
+    }
+
     const json = await res.json();
 
     if (!res.ok || !json.success) {
-      body.innerHTML = `
-        <tr><td colspan="8">Failed to load pending matches</td></tr>
-      `;
+      body.innerHTML = `<tr><td colspan="8">Failed to load pending matches</td></tr>`;
       return;
     }
 
     if (json.data.length === 0) {
-      body.innerHTML = `
-        <tr><td colspan="8">✅ No pending matches</td></tr>
-      `;
+      body.innerHTML = `<tr><td colspan="8">✅ No pending matches</td></tr>`;
       return;
     }
 
@@ -62,37 +63,15 @@ async function loadPendingMatches() {
 
       body.innerHTML += `
         <tr>
-          <td>
-            ${lost.image_url
-              ? `<a href="${lost.image_url}" target="_blank">View</a>`
-              : "N/A"}
-          </td>
-
-          <td>
-            ${found.image_url
-              ? `<a href="${found.image_url}" target="_blank">View</a>`
-              : "N/A"}
-          </td>
-
+          <td>${lost.image_url ? `<a href="${lost.image_url}" target="_blank">View</a>` : "N/A"}</td>
+          <td>${found.image_url ? `<a href="${found.image_url}" target="_blank">View</a>` : "N/A"}</td>
           <td>${lost.category}</td>
           <td>${lost.location}</td>
-          <td>
-            <span class="badge bg-info">
-              ${match.match_score}
-            </span>
-          </td>
-
+          <td><span class="badge bg-info">${match.match_score}</span></td>
           <td>${formatDate(match.created_at)}</td>
-
           <td>
-            <button class="btn btn-success btn-sm"
-              onclick="approveMatch(${match.id})">
-              Approve
-            </button>
-            <button class="btn btn-danger btn-sm"
-              onclick="rejectMatch(${match.id})">
-              Reject
-            </button>
+            <button class="btn btn-success btn-sm" onclick="approveMatch(${match.id})">Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectMatch(${match.id})">Reject</button>
           </td>
         </tr>
       `;
@@ -100,9 +79,7 @@ async function loadPendingMatches() {
 
   } catch (err) {
     console.error(err);
-    body.innerHTML = `
-      <tr><td colspan="8">Server error</td></tr>
-    `;
+    body.innerHTML = `<tr><td colspan="8">Server error</td></tr>`;
   }
 }
 
@@ -118,47 +95,38 @@ async function loadUnmatchedReports() {
       { headers: authHeaders() }
     );
 
+    if (res.status === 401) {
+      requireAuth();
+      return;
+    }
+
     const json = await res.json();
 
     if (!res.ok || !json.success) {
-      body.innerHTML = `
-        <tr><td colspan="6">Failed to load unmatched reports</td></tr>
-      `;
+      body.innerHTML = `<tr><td colspan="6">Failed to load unmatched reports</td></tr>`;
       return;
     }
 
     if (json.data.length === 0) {
-      body.innerHTML = `
-        <tr><td colspan="6">✅ No unmatched reports</td></tr>
-      `;
+      body.innerHTML = `<tr><td colspan="6">✅ No unmatched reports</td></tr>`;
       return;
     }
 
     json.data.forEach(item => {
       body.innerHTML += `
         <tr>
-          <td>
-            ${item.image_url
-              ? `<a href="${item.image_url}" target="_blank">View</a>`
-              : "N/A"}
-          </td>
+          <td>${item.image_url ? `<a href="${item.image_url}" target="_blank">View</a>` : "N/A"}</td>
           <td>${item.category}</td>
           <td>${item.location}</td>
           <td>${formatDate(item.date)}</td>
-          <td>
-            <span class="badge bg-warning">
-              ${item.status}
-            </span>
-          </td>
+          <td><span class="badge bg-warning">${item.status}</span></td>
         </tr>
       `;
     });
 
   } catch (err) {
     console.error(err);
-    body.innerHTML = `
-      <tr><td colspan="6">Server error</td></tr>
-    `;
+    body.innerHTML = `<tr><td colspan="6">Server error</td></tr>`;
   }
 }
 
@@ -169,11 +137,13 @@ async function approveMatch(matchId) {
 
   const res = await fetch(
     `${BASE_URL}/api/matches/${matchId}/approve/`,
-    {
-      method: "PATCH",
-      headers: authHeaders()
-    }
+    { method: "PATCH", headers: authHeaders() }
   );
+
+  if (res.status === 401) {
+    requireAuth();
+    return;
+  }
 
   const json = await res.json();
   alert(json.message || "Approved");
@@ -187,11 +157,13 @@ async function rejectMatch(matchId) {
 
   const res = await fetch(
     `${BASE_URL}/api/matches/${matchId}/reject/`,
-    {
-      method: "PATCH",
-      headers: authHeaders()
-    }
+    { method: "PATCH", headers: authHeaders() }
   );
+
+  if (res.status === 401) {
+    requireAuth();
+    return;
+  }
 
   const json = await res.json();
   alert(json.message || "Rejected");
@@ -201,5 +173,6 @@ async function rejectMatch(matchId) {
 
 /* -------------------- Init -------------------- */
 
+requireAuth();
 loadPendingMatches();
 loadUnmatchedReports();

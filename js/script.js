@@ -1,5 +1,3 @@
-const BASE_URL = "http://localhost:8000";
-
 // Redirect to login if token missing
 if (!localStorage.getItem("token")) {
   window.location.href = "login.html";
@@ -7,7 +5,7 @@ if (!localStorage.getItem("token")) {
 
 function logout() {
   localStorage.removeItem("token");
-  localStorage.removeItem("role");
+  localStorage.removeItem("role"); // optional cleanup
   window.location.href = "login.html";
 }
 
