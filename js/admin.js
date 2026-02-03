@@ -1,123 +1,205 @@
+const BASE_URL = "http://localhost:8000";
 const token = localStorage.getItem("token");
-const role = localStorage.getItem("role");
 
-// Prevent non-admin access
-if (role !== "admin") {
-  alert("Access denied! Only admin can view this page.");
+/* -------------------- Helpers -------------------- */
+
+function authHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`
+  };
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "N/A";
+  return dateStr.substring(0, 10);
+}
+
+function statusBadge(status) {
+  if (status === "APPROVED") return "success";
+  if (status === "REJECTED") return "danger";
+  return "warning"; // PENDING
+}
+
+/* -------------------- Auth Guard -------------------- */
+
+if (!token) {
+  alert("Please login first");
   window.location.href = "login.html";
 }
 
-// Load Matched Items
-async function loadMatches() {
-  const res = await fetch(`${BASE_URL}/api/admin/matches/`, {
-    headers: { "Authorization": `Bearer ${token}` }
-  });
+/* -------------------- Load PENDING Matches -------------------- */
 
-  const data = await res.json();
+async function loadPendingMatches() {
   const body = document.getElementById("matchBody");
   body.innerHTML = "";
 
-  if (data.length === 0) {
-    body.innerHTML = `<tr><td colspan="9" class="text-center">✅ No matched items pending approval</td></tr>`;
-    return;
-  }
+  try {
+    const res = await fetch(
+      `${BASE_URL}/api/matches/pending/`,
+      { headers: authHeaders() }
+    );
 
-  data.forEach(item => {
-    const lost = item.matchedWith;
-    const student = lost?.user || {};
+    const json = await res.json();
 
-    body.innerHTML += `
-      <tr>
-        <td><a href="#" onclick="showImage('${lost.image}')">View</a></td>
-        <td><a href="#" onclick="showImage('${item.image}')">View</a></td>
+    if (!res.ok || !json.success) {
+      body.innerHTML = `
+        <tr><td colspan="8">Failed to load pending matches</td></tr>
+      `;
+      return;
+    }
 
-        <td>${item.category}</td>
-        <td>${item.location}</td>
-        <td><span class="badge bg-success">${item.matchScore}</span></td>
+    if (json.data.length === 0) {
+      body.innerHTML = `
+        <tr><td colspan="8">✅ No pending matches</td></tr>
+      `;
+      return;
+    }
 
-        <td>${student.name || "Unknown"}</td>
-        <td>${student.email || "Unknown"}</td>
+    json.data.forEach(match => {
+      const lost = match.lost_report;
+      const found = match.found_report;
 
-        <td>${item.dateFound?.substring(0,10) || "N/A"}</td>
+      body.innerHTML += `
+        <tr>
+          <td>
+            ${lost.image_url
+              ? `<a href="${lost.image_url}" target="_blank">View</a>`
+              : "N/A"}
+          </td>
 
-        <td>
-          <button class="btn btn-success btn-sm" onclick="approve('${item._id}')">
-            ✅ Approve & Return
-          </button>
-        </td>
-      </tr>
+          <td>
+            ${found.image_url
+              ? `<a href="${found.image_url}" target="_blank">View</a>`
+              : "N/A"}
+          </td>
+
+          <td>${lost.category}</td>
+          <td>${lost.location}</td>
+          <td>
+            <span class="badge bg-info">
+              ${match.match_score}
+            </span>
+          </td>
+
+          <td>${formatDate(match.created_at)}</td>
+
+          <td>
+            <button class="btn btn-success btn-sm"
+              onclick="approveMatch(${match.id})">
+              Approve
+            </button>
+            <button class="btn btn-danger btn-sm"
+              onclick="rejectMatch(${match.id})">
+              Reject
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = `
+      <tr><td colspan="8">Server error</td></tr>
     `;
-  });
+  }
 }
 
-// Load UNMATCHED Lost + Found Items
-async function loadUnmatched() {
-  const res = await fetch(`${BASE_URL}/api/admin/unmatched/`, {
-    headers: { "Authorization": `Bearer ${token}` }
-  });
+/* -------------------- Load UNMATCHED Reports -------------------- */
 
-  const data = await res.json();
+async function loadUnmatchedReports() {
   const body = document.getElementById("unmatchedBody");
   body.innerHTML = "";
 
-  const { lost, found } = data;
+  try {
+    const res = await fetch(
+      `${BASE_URL}/api/reports/unmatched/`,
+      { headers: authHeaders() }
+    );
 
-  if (lost.length === 0 && found.length === 0) {
-    body.innerHTML = `<tr><td colspan="6" class="text-center">✅ No unmatched items</td></tr>`;
-    return;
+    const json = await res.json();
+
+    if (!res.ok || !json.success) {
+      body.innerHTML = `
+        <tr><td colspan="6">Failed to load unmatched reports</td></tr>
+      `;
+      return;
+    }
+
+    if (json.data.length === 0) {
+      body.innerHTML = `
+        <tr><td colspan="6">✅ No unmatched reports</td></tr>
+      `;
+      return;
+    }
+
+    json.data.forEach(item => {
+      body.innerHTML += `
+        <tr>
+          <td>
+            ${item.image_url
+              ? `<a href="${item.image_url}" target="_blank">View</a>`
+              : "N/A"}
+          </td>
+          <td>${item.category}</td>
+          <td>${item.location}</td>
+          <td>${formatDate(item.date)}</td>
+          <td>
+            <span class="badge bg-warning">
+              ${item.status}
+            </span>
+          </td>
+        </tr>
+      `;
+    });
+
+  } catch (err) {
+    console.error(err);
+    body.innerHTML = `
+      <tr><td colspan="6">Server error</td></tr>
+    `;
   }
-
-  // LOST ITEMS
-  lost.forEach(item => {
-    body.innerHTML += `
-      <tr>
-        <td><span class="badge bg-warning">Lost</span></td>
-        <td><a href="#" onclick="showImage('${item.image}')">View</a></td>
-        <td>${item.category}</td>
-        <td>${item.location}</td>
-        <td>${item.dateLost?.substring(0,10) || "N/A"}</td>
-        <td>${item.user?.name || "Unknown"}<br>${item.user?.email || ""}</td>
-      </tr>
-    `;
-  });
-
-  // FOUND ITEMS
-  found.forEach(item => {
-    body.innerHTML += `
-      <tr>
-        <td><span class="badge bg-info">Found</span></td>
-        <td><a href="#" onclick="showImage('${item.image}')">View</a></td>
-        <td>${item.category}</td>
-        <td>${item.location}</td>
-        <td>${item.dateFound?.substring(0,10) || "N/A"}</td>
-        <td>${item.user?.name || "Unknown"}<br>${item.user?.email || ""}</td>
-      </tr>
-    `;
-  });
 }
 
-// Popup image
-function showImage(filename) {
-  document.getElementById("popupImage").src = `http://localhost:8000/uploads/${filename}`;
-  new bootstrap.Modal(document.getElementById("imageModal")).show();
+/* -------------------- Approve / Reject -------------------- */
+
+async function approveMatch(matchId) {
+  if (!confirm("Approve this match and mark items as returned?")) return;
+
+  const res = await fetch(
+    `${BASE_URL}/api/matches/${matchId}/approve/`,
+    {
+      method: "PATCH",
+      headers: authHeaders()
+    }
+  );
+
+  const json = await res.json();
+  alert(json.message || "Approved");
+
+  loadPendingMatches();
+  loadUnmatchedReports();
 }
 
-// Approve Item & Delete
-async function approve(foundId) {
-  if (!confirm("Confirm return approval?")) return;
+async function rejectMatch(matchId) {
+  if (!confirm("Reject this match?")) return;
 
-  const res = await fetch(`${BASE_URL}/api/admin/approve/${foundId}`, {
-    method: "PUT",
-    headers: { "Authorization": `Bearer ${token}` }
-  });
+  const res = await fetch(
+    `${BASE_URL}/api/matches/${matchId}/reject/`,
+    {
+      method: "PATCH",
+      headers: authHeaders()
+    }
+  );
 
-  const data = await res.json();
-  alert(data.message);
+  const json = await res.json();
+  alert(json.message || "Rejected");
 
-  loadMatches();
-  loadUnmatched();
+  loadPendingMatches();
 }
 
-// Load all on page load
-loadMatches();
-loadUnmatched();
+/* -------------------- Init -------------------- */
+
+loadPendingMatches();
+loadUnmatchedReports();
