@@ -60,7 +60,7 @@ class RegisterSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
-    role = serializers.ChoiceField(choices=["student", "staff"])
+    role = serializers.ChoiceField(choices=["user", "admin"])
 
     def create(self, validated_data):
         name = validated_data["name"]
@@ -69,13 +69,20 @@ class RegisterSerializer(serializers.Serializer):
         role = validated_data["role"]
 
         user = User.objects.create_user(
-            username=email,   # login will use username=email
+            username=email,
             email=email,
             password=password,
-            first_name=name
+            full_name=name
+        )
+        if role == "admin":
+            user.is_staff = True
+            user.save()
+
+        Profile.objects.create(
+            user=user,
+            role=role.upper()   # <-- THIS is critical
         )
 
-        Profile.objects.create(user=user, role=role)
         return user
 
 

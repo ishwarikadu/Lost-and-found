@@ -6,7 +6,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
-
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 from cloudinary.uploader import upload, destroy
 from urllib3 import request
 from urllib3 import request
@@ -18,12 +19,12 @@ from .serializers import MatchSerializer
 from django.conf import settings
 from .ai_utils import compute_similarities, calculate_score
 from .models import Report, Match
-
-
-
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
 from .utils import success_response, error_response
-
-
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 # * AUTH *
@@ -43,9 +44,9 @@ def register(request):
         "Validation failed",
         serializer.errors,
         status=status.HTTP_400_BAD_REQUEST
-)
-
-# * REPORTS *
+    )
+      
+# * REPORTS
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])

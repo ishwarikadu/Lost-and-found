@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import (register, report_matches, reports, report_detail, mark_returned,  matches,
+from .views import ( register, report_matches, reports, report_detail, mark_returned,  matches,
     matches_pending,
     matches_approved,
     matches_rejected,
