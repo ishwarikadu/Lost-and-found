@@ -35,10 +35,20 @@ async function login() {
     // Optional UI-only info
     localStorage.setItem("email", email);
 
-    // Redirect (backend will protect admin routes anyway)
+    // Redirect
     window.location.href = "dashboard.html";
 
-  } catch (err) {
+    // Admin redirect 
+     if (email === "ishwarikadu28@gmail.com" || email === "admin") {
+    localStorage.setItem("role", "admin");
+    window.location.href = "admin.html";
+  } else {
+    localStorage.setItem("role", "user");
+    window.location.href = "dashboard.html";
+  }
+}
+
+  catch (err) {
     console.error(err);
     msgEl.innerText = "Server error. Please try again.";
   }

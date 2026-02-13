@@ -32,10 +32,12 @@ urlpatterns = [
     path("", home),
     path("admin/", admin.site.urls),
     path("api/test/", test_api),
-    path("api/", include("lostfound.urls")),
+  
     path("api/login/", TokenObtainPairView.as_view(), name="login"),
     path("api/login/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("api/", include("lostfound.urls")),
 ]
+
 
 
 

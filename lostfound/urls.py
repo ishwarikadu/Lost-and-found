@@ -9,19 +9,19 @@ from .views import ( register, report_matches, reports, report_detail, mark_retu
     ai_match)
 
 urlpatterns = [
-    path("api/register/", register),
+    path("register/", register),
     # reports
-    path("api/reports/", reports),
-    path("api/reports/<int:pk>/", report_detail),
-    path("api/reports/<int:pk>/mark-returned/", mark_returned),
+    path("reports/", reports),
+    path("reports/<int:pk>/", report_detail),
+    path("reports/<int:pk>/mark-returned/", mark_returned),
     # matches
-    path("api/matches/", matches),
-    path("api/matches/pending/", matches_pending),
-    path("api/matches/approved/", matches_approved),
-    path("api/matches/rejected/", matches_rejected),
-    path("api/matches/<int:pk>/approve/", approve_match),
-        path("api/matches/<int:pk>/reject/", reject_match),
-        path("api/admin/reports/unmatched/", unmatched_reports),
+    path("matches/", matches),
+    path("matches/pending/", matches_pending),
+    path("matches/approved/", matches_approved),
+    path("matches/rejected/", matches_rejected),
+    path("matches/<int:pk>/approve/", approve_match),
+        path("matches/<int:pk>/reject/", reject_match),
+        path("admin/reports/unmatched/", unmatched_reports),
         # Ai based matching endpoint 
         path("ai/match/", ai_match),
         path("reports/<int:pk>/matches/", report_matches),

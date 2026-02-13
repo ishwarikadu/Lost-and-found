@@ -10,7 +10,6 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from cloudinary.uploader import upload, destroy
 from urllib3 import request
-from urllib3 import request
 from .serializers import RegisterSerializer, ReportSerializer
 from .models import Report
 from django.utils import timezone
@@ -23,7 +22,6 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from .utils import success_response, error_response
-from django.views.decorators.csrf import csrf_exempt
 from rest_framework_simplejwt.tokens import RefreshToken
 
 

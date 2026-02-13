@@ -72,7 +72,7 @@ class RegisterSerializer(serializers.Serializer):
             username=email,
             email=email,
             password=password,
-            full_name=name
+            first_name=name
         )
         if role == "admin":
             user.is_staff = True
@@ -80,7 +80,7 @@ class RegisterSerializer(serializers.Serializer):
 
         Profile.objects.create(
             user=user,
-            role=role.upper()   # <-- THIS is critical
+            role=role.upper()   
         )
 
         return user

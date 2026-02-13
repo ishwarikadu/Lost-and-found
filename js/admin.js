@@ -28,6 +28,10 @@ function requireAuth() {
   }
 }
 
+if (role !== "admin") {
+  alert("Access denied! Only admin can view this page.");
+  window.location.href = "login.html";
+}
 /* -------------------- Load PENDING Matches -------------------- */
 
 async function loadPendingMatches() {
