@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.decorators import parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Q
 from django.contrib.auth.models import User
@@ -11,9 +11,7 @@ from django.contrib.auth import authenticate
 from cloudinary.uploader import upload, destroy
 from urllib3 import request
 from .serializers import RegisterSerializer, ReportSerializer
-from .models import Report
 from django.utils import timezone
-from .models import Match
 from .serializers import MatchSerializer
 from django.conf import settings
 from .ai_utils import compute_similarities, calculate_score
@@ -43,30 +41,49 @@ def register(request):
         serializer.errors,
         status=status.HTTP_400_BAD_REQUEST
     )
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+    return Response({
+        "first_name": request.user.first_name,
+        "email": request.user.email,
+        "role": "admin" if request.user.is_staff else "user"
+    })
+
       
-# * REPORTS
+#  REPORTS
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def reports(request):
 
     if request.method == "GET":
+
         qs = Report.objects.all().order_by("-created_at")
 
+        # Filters
         status_filter = request.GET.get("status")
         category_filter = request.GET.get("category")
         location_filter = request.GET.get("location")
         search_query = request.GET.get("search")
 
-    if search_query:
-        qs = qs.filter(
-            Q(item_name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(category__icontains=search_query) |
-            Q(location__icontains=search_query)
-        )
+        if status_filter:
+            qs = qs.filter(status=status_filter)
 
-        # * pagination *
+        if category_filter:
+            qs = qs.filter(category__icontains=category_filter)
+
+        if location_filter:
+            qs = qs.filter(location__icontains=location_filter)
+
+        if search_query:
+            qs = qs.filter(
+                item_name__icontains=search_query
+            ) | qs.filter(
+                description__icontains=search_query
+            )
+
+        # PAGINATION
         try:
             page = int(request.GET.get("page", 1))
             limit = int(request.GET.get("limit", 10))
@@ -86,7 +103,18 @@ def reports(request):
         end = start + limit
 
         total_count = qs.count()
-        qs = qs[start:end]
+        paginated_qs = qs[start:end]
+
+        return success_response(
+            "Reports fetched successfully",
+            {
+                "total": total_count,
+                "page": page,
+                "limit": limit,
+                "results": ReportSerializer(paginated_qs, many=True).data
+            }
+        )
+
 
         return success_response(
             "Reports fetched successfully",
